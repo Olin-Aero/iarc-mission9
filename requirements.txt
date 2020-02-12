@@ -1,0 +1,9 @@
+matplotlib==1.5.1
+numpy
+pocketsphinx
+pyaudio>=0.2.11
+qrcode==6.0
+qrtools
+SpeechRecognition
+torch==1.0.1
+pyzbar
