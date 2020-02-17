@@ -5,6 +5,12 @@ from std_msgs.msg import String
 import re
 
 class keyboardInput():
+	"""
+	Takes input from a keyboard in the form of "A6 to B7" or "d2 -> e5" and 
+	converts it to an inital and destination of the requested move.
+	Publisher:  /req_initial -> square of piece to be moved
+				/req_destination -> square for piece to move to
+	"""
 	def __init__(self):
 		rospy.init_node('keyboardInput', anonymous=True)
 		self.initPub = rospy.Publisher('/req_initial',String,queue_size=10)
