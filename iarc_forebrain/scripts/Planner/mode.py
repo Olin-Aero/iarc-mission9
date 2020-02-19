@@ -26,9 +26,9 @@ class Mode(object):
         ''' Called iteratively while mode is active '''
         return hasattr(self, "active") and self.active
 
-    def test(self):
+    def test(self, *args):
         ''' Run the mode in current thread '''
-        self.enable()
+        self.enable(*args)
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.update()

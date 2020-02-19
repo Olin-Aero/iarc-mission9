@@ -216,7 +216,7 @@ class Drone:
 
             r.sleep()
 
-    def move_towards(self, des_x=0.0, des_y=0.0, frame='map', height=None):
+    def move_towards(self, des_x=0.0, des_y=0.0, frame='map', height=None, tol=0.5):
         """
         Tells the drone to begin moving towards a specific position on the field, then returns
         :param height: Flight altitude, meters. Defaults to previously commanded height.
@@ -238,6 +238,13 @@ class Drone:
         pose_stamped.header.frame_id = frame
 
         self.posPub.publish(pose_stamped)
+
+        rel_pos = self.get_pos(frame).pose.position
+        dist = math.sqrt(
+            (rel_pos.x - des_x) ** 2 +
+            (rel_pos.y - des_y) ** 2 +
+            (rel_pos.z - height) ** 2)
+        return dist <= tol
 
     def move_with_velocity(self, x=0.0, y=0.0, z=0.0, angvel=0.0):
         """
@@ -350,7 +357,6 @@ class Drone:
             return True
         else:
             return False
-
 
     def turn_to(self, angle, frame = 'map'):
         """
