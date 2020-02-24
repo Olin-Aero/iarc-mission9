@@ -32,7 +32,16 @@ class legalMoveChecker(object):
 		self.piece_destination = msg.data
 
 	def checkMove(self):
-		chess.Move.from_uci
+		board = chess.Board("8/8/8/8/8/8/8/8")
+		executive = "board.set_piece_at(chess.{},chess.Piece(chess.{},chess.{}))".format(self.req_initial,self.piece_initial.type,self.piece_initial.color)
+		exec(executive)
+		executive = "board.set_piece_at(chess.{},chess.Piece(chess.{},chess.{}))".format(self.req_destination,self.piece_destination.type,self.piece_destination.color)
+		if(chess.Move.from_uci((req_initial+req_destination).lower()) in board.legal_moves):
+			if(piece_destination == None):
+				self.move_initial.publish(self.req_initial)
+				self.move_destination.publish(self.req_destination)
+			else:
+				self.move
 
 	def main(self):
 		while not rospy.is_shutdown():
