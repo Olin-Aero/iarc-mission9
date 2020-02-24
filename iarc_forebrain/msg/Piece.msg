@@ -1,0 +1,2 @@
+String piece
+String color
