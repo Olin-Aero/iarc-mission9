@@ -41,7 +41,11 @@ class legalMoveChecker(object):
 				self.move_initial.publish(self.req_initial)
 				self.move_destination.publish(self.req_destination)
 			else:
-				self.move
+				self.move_initial.publish(self.req_destination)
+				self.move_destination.publish("TRASH")
+				self.move_initial.publish(self.req_initial)
+				self.move_destination.publish(self.req_destination))
+
 
 	def main(self):
 		while not rospy.is_shutdown():
