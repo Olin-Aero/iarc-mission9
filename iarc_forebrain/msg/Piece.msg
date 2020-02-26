@@ -1,2 +1,2 @@
-String piece
-String color
+string piece
+string color

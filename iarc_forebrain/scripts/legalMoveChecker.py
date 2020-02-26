@@ -2,13 +2,16 @@
 
 import rospy
 from std_msgs.msg import String
+from iarc_forebrain.msg import MovePiece,Piece
+import chess
+
 
 class legalMoveChecker(object):
 	"""docstring for legalMoveChecker"""
 	def __init__(self):
 		rospy.init_node('legalMoveChecker', anonymous=True)
-		rospy.Subscriber("/req_move",SquareMove,self.requestedMoveCB)
-		self.moveSquarePub = rospy.Publisher("/move_square",SquareMove,queue_size=10)
+		rospy.Subscriber("/req_move",MovePiece,self.requestedMoveCB)
+		self.moveSquarePub = rospy.Publisher("/move_square",MovePiece,queue_size=10)
 		self.move = None
 		self.rate = rospy.Rate(10)
 		
