@@ -24,14 +24,10 @@ class legalMoveChecker(object):
 		exec(executive)
 		executive = "board.set_piece_at(chess.{},chess.Piece(chess.{},chess.{}))".format(self.move.dest_square.data,self.move.dest_piece.type.data,self.move.dest_piece.color.data)
 		if(chess.Move.from_uci((req_initial+req_destination).lower()) in board.legal_moves):
-			if(piece_destination == None):
-				self.toGo = self.move
-				self.toGo.capture.data = False
-			else:
-				self.toGo = self.move
-				self.toGo.capture.data = True
+			self.moveSquarePub.publish(self.move)
 		else:
 			rospy.logerror("Illegal Move, try again.")
+			
 		self.move = None
 
 
