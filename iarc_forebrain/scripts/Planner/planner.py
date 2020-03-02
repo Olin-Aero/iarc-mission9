@@ -11,12 +11,13 @@ from std_msgs.msg import String, Int32MultiArray
 from geometry_msgs.msg import PointStamped, Point, Vector3
 from tf.transformations import *
 from visualization_msgs.msg import Marker, MarkerArray
+from iarc_forebrain.msg import MovePiece, Piece
 
 from mode import Mode
 from follow_gesture import FollowGesture
 from takeoff_land import TakeoffLand
 from move import Move
-from move_piece import MovePiece
+from chess_move import ChessMove
 from photo import Photo
 from turn import Turn
 from iarc_arbiter.drone import Drone
@@ -35,6 +36,7 @@ class Planner(object):
         self.obstacles = defaultdict(list)
         rospy.Subscriber("/voice", String, self.voice_callback)
         rospy.Subscriber("/helmet_pos", PointStamped, self.player_callback)
+        rospy.Subscriber("/req_square", MovePiece, self.move_piece_callback)
         # TODO: change message type
         rospy.Subscriber("/obstacles", PointStamped, self.obstacle_callback)
         rospy.Subscriber("/rangefinder", Int32MultiArray,
@@ -54,6 +56,9 @@ class Planner(object):
             return
         drone = self.drones[args[0]]
         self.command_drone(drone, args)
+
+    def move_piece_callback(self, msg):
+        self.command_drone(self.drones[self.colors[0]], [0, "chess_move", msg.init_square, msg.dest_square])
 
     def command_drone(self, drone, args):
         if args[1] in drone.modes:
@@ -173,7 +178,7 @@ class SubPlanner:
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
                       "stop": Move(drone, 0),         "forward": Move(drone, 0, relative=True),
                       "duck": Move(drone, 0, -1),     "jump": Move(drone, 0, 1),
-                      "analyze": Photo(drone),        "move_piece": MovePiece(drone)}
+                      "analyze": Photo(drone),        "chess_move": ChessMove(drone)}
         self.look_modes = {"look": Turn(drone),
                            "right": Turn(drone, -1),
                            "left": Turn(drone, 1)}

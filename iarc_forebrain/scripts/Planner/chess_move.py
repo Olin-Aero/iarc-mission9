@@ -8,11 +8,11 @@ from mode import Mode
 
 import numpy as np
 
-# TODO: capture piece option, integrate with parser
+# TODO: capturing pieces
 
 TOL = 0.1 # Position tolerance in meters
 
-class MovePiece(Mode):
+class ChessMove(Mode):
 
     def __init__(self, drone):
         Mode.__init__(self, drone)
