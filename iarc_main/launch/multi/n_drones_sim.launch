@@ -1,11 +1,12 @@
 <launch>
     <!-- THIS ONLY WORKS IN SIM RIGHT NOW -->
-    <arg name="n"/>
+    <arg name="n" default="1"/>
     <arg name="sim" default="true"/>
 
     <group if="$(arg sim)">
         <param name="use_sim_time" value="true" />
         <include file="$(find iarc_sim_engine)/launch/basic.launch"/>
+        <node pkg="tf" type="static_transform_publisher" name="board_broadcaster" args="0 0 0 0 0 0 1 map board 100" />
     </group>
 
     <include file="$(find iarc_main)/launch/multi/single_drone.launch" if="$(eval n>=1)">

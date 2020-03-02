@@ -8,20 +8,24 @@ from mode import Mode
 
 import numpy as np
 
-# TODO: simulator add board frame, fix height, test code
+# TODO: capture piece option, integrate with parser
+
+TOL = 0.1 # Position tolerance in meters
 
 class MovePiece(Mode):
 
     def __init__(self, drone):
         Mode.__init__(self, drone)
 
-    def enable(self, start, end):
-        self.defaultPos = self.drone.get_pos("board").pose.position
+    def enable(self, start, end, reset=False):
+        defaultPos = self.drone.get_pos("board").pose.position
+        self.defaultPos = [defaultPos.x, defaultPos.y]
         self.defaultLand = False
         self.startPos = get_coordinates(start)
         self.endPos = get_coordinates(end)
         self.active = True
         self.state = 0
+        self.reset = reset
         self.t0 = rospy.get_time()
         print("Moving piece from " + start + " to " + end)
 
@@ -29,11 +33,12 @@ class MovePiece(Mode):
         # Land on piece
         if self.state == 0:
             if self.drone.is_flying():
-                if self.drone.move_towards(startPos[0], startPos[1], "board"):
+                if self.drone.move_towards(self.startPos[0], self.startPos[1], "board", tol=TOL):
                     self.state += 1
                     self.t0 = rospy.get_time()
                     self.drone.land()
                     print("Landing on target piece")
+                    print(self.drone.get_pos("board"))
             else:
                 self.drone.takeoff()
                 self.defaultLand = True
@@ -49,11 +54,12 @@ class MovePiece(Mode):
                 print("Taking off")
         # Land on destination square
         elif self.state == 2:
-            if self.drone.move_towards(endPos[0], endPos[1], "board"):
+            if self.drone.move_towards(self.endPos[0], self.endPos[1], "board", tol=TOL):
                 self.state += 1
                 self.t0 = rospy.get_time()
                 self.drone.land()
                 print("Landing on destination square")
+                print(self.drone.get_pos("board"))
         # Release piece
         elif self.state == 3:
             if rospy.get_time() - self.t0 > 2.0: # wait for landing to finish
@@ -63,13 +69,17 @@ class MovePiece(Mode):
                 self.t0 = rospy.get_time()
                 self.drone.takeoff()
                 print("Taking off")
+                if not self.reset:
+                    print("Move completed")
+                    self.drone.hover()
         # Return to starting position
-        elif self.state == 4:
-            if self.drone.move_towards(defaultPos[0], defaultPos[1], "board"):
+        elif self.state == 4 and self.reset:
+            if self.drone.move_towards(self.defaultPos[0], self.defaultPos[1], "board", tol=TOL):
                 if self.defaultLand:
                     self.drone.land()
                 self.active = False
                 print("Move completed")
+                self.drone.hover()
 
 def get_coordinates(square):
     ''' Converts chess coordinates to world coordinates in board frame '''
