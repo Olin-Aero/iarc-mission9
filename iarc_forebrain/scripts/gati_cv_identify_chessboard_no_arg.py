@@ -101,6 +101,7 @@ def callback(data):
 def listener():
     rospy.init_node('node_name')
     rospy.Subscriber('/usb_cam/image_raw', Image, callback)
+    # rospy.Subscriber('/alexa/image_raw', Image, callback)
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
 
