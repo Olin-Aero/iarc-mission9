@@ -15,6 +15,18 @@ import numpy as np
 import math
 
 #####################
+# MOUSE POINT STUFF #
+#####################
+
+def select_point(event,x,y,flags,param):
+    """ if you click on image window, prints mouseclicks
+    """
+    if event == cv2.EVENT_LBUTTONDBLCLK:
+        print("POINTS: ", x, y)
+
+
+
+#####################
 # DETECT CHESSBOARD #
 #####################
 
@@ -25,8 +37,11 @@ def detect_chessboard_coordinates(image, visualize=True):
     Detects the chessboard in the image feed
 
     Input: OpenCV image
-    Output: tuple of x- and y- coordinates of the corners of the chessboard in the display
+    Output:
     """
+
+    # GREY
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     #################
     # OTHER METHODS #
@@ -36,87 +51,32 @@ def detect_chessboard_coordinates(image, visualize=True):
     # adaptive_thresh = cv2.adaptiveThreshold(gray_image,255, \
     #                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
 
+    ##################
+    # GET CHESSBOARD #
+    ##################
+
+    foreground = get_foreground(gray_image)
+    if foreground is None:
+        return "foreground is None"
+
     #####################
     # WHERE ARE CORNERS #
     #####################
 
-    # GREY
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # GLOBAL BINARIZATION
-    ret,global_thresh = cv2.threshold(gray_image,170,235,cv2.THRESH_BINARY)
-
-    # ADAPTIVE BINARIZATION
-    # adaptive_thresh = cv2.adaptiveThreshold(gray_image,255, \
-    #                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-
+    intersections = get_chessboard_intersections(foreground)
+    if intersections is None:
+        return "intersection is None"
     ############ OR DO
-
-    # # # GET CORNERS -- GOOD FEATURES TO TRACK
-    corners = cv2.goodFeaturesToTrack(gray_image,50,0.01,10)
+    # GET CORNERS -- GOOD FEATURES TO TRACK
+    corners = cv2.goodFeaturesToTrack(foreground,50,0.01,10)
     corners = np.int0(corners)
 
-    ############
-
-    # FIND CONTOURS
-    im2, contours, hierarchy = cv2.findContours(global_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # MAKE BLANK BLACK IMAGE
-    mask = np.zeros_like(gray_image)
-    # DRAW CONTOURS ONTO MASK
-    cv2.drawContours(mask, contours, -1, 255, 10)
-
-    ############ again
-
-    # FIND CONTOURS
-    im2, contours2, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # MAKE BLANK BLACK IMAGE
-    mask2 = np.zeros_like(gray_image)
-    # DRAW FILLED CONTOUR ONTO MASK
-    cnts = contours2[1]
-    cv2.drawContours(mask2, contours2, 1, 255, -1)
-
-    ############
-
-    # PASTE CHESSBOARD ONTO BLACK BACKGROUND
-    out = np.zeros_like(gray_image)
-    out[mask2 == 255] = gray_image[mask2 == 255]
-
-    ############
-
-    # REDO BINARY THRESHOLD -- CAN REMOVE STEP LATER
-    ret, new_thresh = cv2.threshold(out,170,235,cv2.THRESH_BINARY)
-    # CANNY EDGE DETECTION
-    # image, minVal, maxVal, size of Sobel kernel, L2gradient boolean
-    canny_edges = cv2.Canny(new_thresh, 200, 255)
-
-    # HOUGH LINE TRANSFORM (INFER LINES IN IMAGE, MAP GRID)
-    #  Standard Hough Line Transform
-    rho_h, theta_h, thresh_h = 1, np.pi / 180, 110
-    lines = cv2.HoughLines(canny_edges, rho_h, theta_h, thresh_h)
-
-    intersections = None
-
-    # Draw the lines
-    if lines is not None:
-        for i in range(0, len(lines)):
-            rho = lines[i][0][0]
-            theta = lines[i][0][1]
-            a = math.cos(theta)
-            b = math.sin(theta)
-            x0 = a * rho
-            y0 = b * rho
-            pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
-            pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-            cv2.line(out, pt1, pt2, (0,0,255), 3, cv2.LINE_AA)
-
-        # CALCULATE INTERSECTIONS
-        # Segment your lines into two classes based on their angle.
-        segmented = segment_by_angle_kmeans(lines)
-        # Calculate the intersections of each line in one class to the lines in the other classes.
-        intersections = segmented_intersections(segmented)
+    # TODO: do comparisons on goodFeaturesToTrack: grey image or foreground image
 
     ###############
     # GET SQUARES #
     ###############
+
 
 
     #########################
@@ -135,37 +95,129 @@ def detect_chessboard_coordinates(image, visualize=True):
     # VISUALIZE #
     #############
 
-    visual = out
+    visual = foreground
     # visual = gray_image
     # visual = adaptive_thresh
 
     visual = cv2.cvtColor(visual, cv2.COLOR_GRAY2BGR)
-    # visual = out
-
-    # if visualize:
-    #     cv2.imshow('Image', visual)
-    #     cv2.waitKey(1)
+    cv2.setMouseCallback('Corners', select_point)
 
     if visualize:
         for i in corners:
             x,y = i.ravel()
             cv2.circle(visual,(x,y),3,(0,255,0),-1)
-        if intersections is not None:
-            for i in intersections:
-                x,y = i[0]
-                cv2.circle(visual,(x,y),3,(0,0,255),1)
+        for i in intersections:
+            x,y = i[0]
+            cv2.circle(visual,(x,y),3,(0,0,255),1)
         cv2.imshow('Corners',visual)
         cv2.waitKey(10)
 
-    ##########
-    # RETURN #
-    ##########
-
     return 0
 
-    ####################
-    # HELPER FUNCTIONS #
-    ####################
+########################################################################
+
+####################
+# HELPER FUNCTIONS #
+####################
+
+    ###################
+    # FOREGROUND CODE #
+    ###################
+
+def get_foreground(image):
+    """eliminates noise from background
+    by returning image with foreground on top of black background.
+
+     Args:
+        image: grey cv::Mat numpy.ndarray
+
+    Returns:
+        out: masked grey cv::MAT numpy.ndarray OR None
+
+    """
+    # GLOBAL BINARIZATION
+    ret,global_thresh = cv2.threshold(image,170,235,cv2.THRESH_BINARY)
+
+    ############
+    # FIND CONTOURS
+    im2, contours, hierarchy = cv2.findContours(global_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # MAKE BLANK BLACK IMAGE
+    mask = np.zeros_like(image)
+    # DRAW CONTOURS ONTO MASK
+    cv2.drawContours(mask, contours, -1, 255, 10)
+
+    ############ again
+    # FIND CONTOURS
+    im2, contours2, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # MAKE BLANK BLACK IMAGE
+    mask2 = np.zeros_like(image)
+
+    # TRY TO SKIP FRAME IF IT ISN'T GOOD
+    cnt = contours2[1]
+    # print("CNT : ", cnt.shape)
+    if cnt.shape[0] < 100:
+        return None
+
+    # DRAW FILLED CONTOUR ONTO MASK
+    cv2.drawContours(mask2, contours2, 1, 255, -1)
+    # cv2.drawContours(mask2, [cnt], 255, -1)
+
+    ############
+    # PASTE CHESSBOARD ONTO BLACK BACKGROUND
+    out = np.zeros_like(image)
+    out = cv2.bitwise_and(image, mask2)
+    return out
+
+    #####################
+    # INTERSECTION CODE #
+    #####################
+
+def get_chessboard_intersections(image):
+    """performs canny edge detection, hough transform, and then
+    finds the intersections (corners)
+
+     Args:
+        image: grey cv::Mat numpy.ndarray
+
+    Returns:
+        out: list of intersections
+    """
+    intersections = None
+
+    # REDO BINARY THRESHOLD -- CAN REMOVE STEP LATER
+    ret, new_thresh = cv2.threshold(image,170,235,cv2.THRESH_BINARY)
+
+    # CANNY EDGE DETECTION
+    # image, minVal, maxVal, size of Sobel kernel, L2gradient boolean
+    canny_edges = cv2.Canny(new_thresh, 200, 255)
+
+    # HOUGH LINE TRANSFORM (INFER LINES IN IMAGE, MAP GRID)
+    #  Standard Hough Line Transform
+    rho_h, theta_h, thresh_h = 1, np.pi / 180, 110
+    lines = cv2.HoughLines(canny_edges, rho_h, theta_h, thresh_h)
+
+    # DRAW/SORT/FIND INTERSECTIONS OF LINES
+    if lines is not None:
+        # Draw the lines
+        # for i in range(0, len(lines)):
+        #     rho = lines[i][0][0]
+        #     theta = lines[i][0][1]
+        #     a = math.cos(theta)
+        #     b = math.sin(theta)
+        #     x0 = a * rho
+        #     y0 = b * rho
+        #     pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
+        #     pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
+        #     cv2.line(image, pt1, pt2, (0,0,255), 3, cv2.LINE_AA)
+
+        # CALCULATE INTERSECTIONS
+        # Segment your lines into two classes based on their angle.
+        segmented = segment_by_angle_kmeans(lines)
+        # Calculate the intersections of each line in one class to the lines in the other classes.
+        intersections = segmented_intersections(segmented)
+
+    return intersections
+
 
 from collections import defaultdict
 def segment_by_angle_kmeans(lines, k=2, **kwargs):
@@ -213,6 +265,19 @@ def segment_by_angle_kmeans(lines, k=2, **kwargs):
     return segmented
 
 
+def segmented_intersections(lines):
+    """Finds the intersections between groups of lines."""
+
+    intersections = []
+    for i, group in enumerate(lines[:-1]):
+        for next_group in lines[i+1:]:
+            for line1 in group:
+                for line2 in next_group:
+                    intersections.append(intersection(line1, line2))
+
+    return intersections
+
+
 def intersection(line1, line2):
     """Finds the intersection of two lines given in Hesse normal form.
 
@@ -230,18 +295,29 @@ def intersection(line1, line2):
     x0, y0 = int(np.round(x0)), int(np.round(y0))
     return [[x0, y0]]
 
+    ###############
+    # GET SQUARES #
+    ###############
 
-def segmented_intersections(lines):
-    """Finds the intersections between groups of lines."""
-
-    intersections = []
-    for i, group in enumerate(lines[:-1]):
-        for next_group in lines[i+1:]:
-            for line1 in group:
-                for line2 in next_group:
-                    intersections.append(intersection(line1, line2))
-
-    return intersections
+def order_points(pts):
+	# initialzie a list of coordinates that will be ordered
+	# such that the first entry in the list is the top-left,
+	# the second entry is the top-right, the third is the
+	# bottom-right, and the fourth is the bottom-left
+	rect = np.zeros((4, 2), dtype = "float32")
+	# the top-left point will have the smallest sum, whereas
+	# the bottom-right point will have the largest sum
+	s = pts.sum(axis = 1)
+	rect[0] = pts[np.argmin(s)]
+	rect[2] = pts[np.argmax(s)]
+	# now, compute the difference between the points, the
+	# top-right point will have the smallest difference,
+	# whereas the bottom-left will have the largest difference
+	diff = np.diff(pts, axis = 1)
+	rect[1] = pts[np.argmin(diff)]
+	rect[3] = pts[np.argmax(diff)]
+	# return the ordered coordinates
+	return rect
 
 
 
@@ -261,8 +337,9 @@ def callback(data):
         cv_image = bridge.imgmsg_to_cv2(data, desired_encoding="passthrough")
 
         # Process it
-        coordinates = detect_chessboard_coordinates(cv_image)
-        print("rosbag", coordinates)
+        retval = detect_chessboard_coordinates(cv_image)
+        if retval != 0:
+            print("rosbag", retval)
 
     except CvBridgeError as e:
         print(e)
@@ -275,7 +352,6 @@ def listener():
     # rospy.Subscriber('/alexa/image_raw', Image, callback)
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
-
 
 
 ########
